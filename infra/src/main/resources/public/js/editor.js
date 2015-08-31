@@ -30,6 +30,12 @@ window.RTE = (function(){
 				sel.addRange(this.range);
 			};
 
+			this.insertHTML = function(htmlContent){
+				var wrapper = document.createElement('div');
+				$(wrapper).html(htmlContent);
+				this.range.insertNode(wrapper);
+			};
+
 			function selectionChanged(){
 				var selectedElements = getSelectedElements();
 
@@ -534,7 +540,6 @@ window.RTE = (function(){
 							scope.display.pickFile = false;
 							instance.element.children('[contenteditable]').find('img').each(function(index, item){
 								if($(item).attr('src') === '/workspace/document/' + scope.display.file._id){
-									ui.extendElement.resizable($(item));
 									$(item).attr('draggable', true);
 									$(item).attr('native', true);
 								}
@@ -641,7 +646,7 @@ window.RTE = (function(){
 
 							if(instance.selection.length === 0){
 								linkNode.text(scope.linker.params.link);
-								document.execCommand('insertHTML', false, linkNode[0].outerHTML);
+								instance.insertHTML(linkNode[0].outerHTML);
 							}
 							else{
 								document.execCommand('createLink', false, scope.linker.params.link);
@@ -673,6 +678,60 @@ window.RTE = (function(){
 							scope.linker.loadApplicationResources(function(){});
 
 							scope.$apply('linker');
+						});
+					}
+				}
+			});
+
+			RTE.baseToolbarConf.option('table', function(instance){
+				return {
+					template: '' +
+					'<popover>' +
+						'<i popover-opener opening-event="click"></i>' +
+						'<popover-content>' +
+							'<div class="draw-table"></div>' +
+						'</popover-content>' +
+					'</popover>',
+					link: function(scope, element, attributes){
+						var nbRows = 12;
+						var nbCells = 12;
+						var drawer = element.find('.draw-table');
+						for(var i = 0; i < nbRows; i++){
+							var line = $('<div class="row"></div>');
+							drawer.append(line);
+							for(var j = 0; j < nbCells; j++){
+								line.append('<div class="one cell"></div>');
+							}
+						}
+
+						drawer.find('.cell').on('mouseover', function(){
+							var line = $(this).parent();
+							for(var i = 0; i <= line.index(); i++){
+								var row = $(drawer.find('.row')[i]);
+								for(var j = 0; j <= $(this).index(); j++){
+									var cell = $(row.find('.cell')[j]);
+									cell.addClass('match');
+								}
+							}
+						});
+
+						drawer.find('.cell').on('mouseout', function(){
+							drawer.find('.cell').removeClass('match');
+						});
+
+						drawer.find('.cell').on('click', function(){
+							var table = document.createElement('table');
+							var line = $(this).parent();
+							for(var i = 0; i <= line.index(); i++){
+								var row = $('<tr></tr>');
+								$(table).append(row);
+								for(var j = 0; j <= $(this).index(); j++){
+									var cell = $('<td></td>');
+									cell.html('&nbsp;')
+									row.append(cell);
+								}
+							}
+							instance.insertHTML(table.outerHTML);
 						});
 					}
 				}
@@ -746,7 +805,7 @@ window.RTE = (function(){
 						scope.display = {};
 						scope.applyTemplate = function(template){
 							scope.display.pickTemplate = false;
-							document.execCommand('insertHTML', false, _.findWhere(scope.templates, { title: template.title}).html);
+							instance.insertHTML(_.findWhere(scope.templates, { title: template.title}).html);
 						};
 
 						element.children('i').on('click', function(){
@@ -765,7 +824,7 @@ window.RTE = (function(){
 					template: '' +
 					'<editor-toolbar></editor-toolbar>' +
 					'<popover>' +
-						'<i class="tools" popover-opener></i>' +
+						'<i class="tools" popover-opener opening-event="click"></i>' +
 						'<popover-content>' +
 							'<ul>' +
 								'<li>Editeur de texte</li>' +
@@ -811,6 +870,9 @@ window.RTE = (function(){
 										htmlZone.val(html_beautify(newValue));
 									}
 								}
+								element.children('[contenteditable]').find('img, table').each(function(index, item){
+									ui.extendElement.resizable($(item), { moveWithResize: false });
+								});
 							}
 						);
 
@@ -967,12 +1029,31 @@ window.RTE = (function(){
 					link: function(scope, element, attributes){
 						var parentElement = element.parents('popover');
 						var popover = parentElement.find('popover-content');
-						parentElement.on('mouseover', function(e){
-							popover.removeClass("hidden");
-						});
-						parentElement.on('mouseout', function(e){
-							popover.addClass("hidden");
-						});
+						if(attributes.openingEvent === 'click'){
+							element.on('click', function(){
+								if(!popover.hasClass('hidden')){
+									popover.addClass("hidden");
+								}
+								else{
+									popover.removeClass("hidden");
+								}
+							});
+
+							$('body').on('click', function(e){
+								if(parentElement.find(e.originalEvent.target).length > 0){
+									return;
+								}
+								popover.addClass("hidden");
+							});
+						}
+						else{
+							parentElement.on('mouseover', function(e){
+								popover.removeClass("hidden");
+							});
+							parentElement.on('mouseout', function(e){
+								popover.addClass("hidden");
+							});
+						}
 					}
 				};
 			});

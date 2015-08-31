@@ -308,8 +308,7 @@ ui.extendElement = {
 			if(element.data('lock') === true || element.data('resizing') === true){
 				return;
 			}
-			element.trigger('startResize');
-			e.preventDefault();
+
 			var interrupt = false;
 			var mouse = { y: e.pageY, x: e.pageX };
 			var resizeLimits = {
@@ -336,6 +335,8 @@ ui.extendElement = {
 			};
 
 			if(resizeLimits.horizontalLeft || resizeLimits.horizontalRight ||resizeLimits.verticalTop || resizeLimits.verticalBottom){
+				element.trigger('startResize');
+				e.preventDefault();
 				element.data('resizing', true);
 				$('.main').css({
 					'cursor': element.css('cursor')
@@ -359,10 +360,13 @@ ui.extendElement = {
 							if(initial.pos.left - distance < parentData.pos.left){
 								distance = initial.pos.left - parentData.pos.left;
 							}
-							element.offset({
-								left: initial.pos.left - distance,
-								top: p.top
-							});
+							if(params.moveWithResize !== false){
+								element.offset({
+									left: initial.pos.left - distance,
+									top: p.top
+								});
+							}
+
 							newWidth = initial.size.width + distance;
 						}
 						else{
@@ -383,10 +387,13 @@ ui.extendElement = {
 							if(initial.pos.top - distance < parentData.pos.top){
 								distance = initial.pos.top - parentData.pos.top;
 							}
-							element.offset({
-								left: p.left,
-								top: initial.pos.top - distance
-							});
+							if(params.moveWithResize !== false){
+								element.offset({
+									left: p.left,
+									top: initial.pos.top - distance
+								});
+							}
+
 							newHeight = initial.size.height + distance;
 						}
 						else{
