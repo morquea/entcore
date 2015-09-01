@@ -256,6 +256,12 @@ ui.extendElement = {
 			params.lock = {};
 		}
 
+		if(element.length > 1){
+			element.each(function(index, item){
+				ui.extendElement.resizable($(item), params);
+			})
+		}
+
 		$('body').css({
 			'-webkit-user-select': 'none',
 			'-moz-user-select': 'none',
@@ -428,6 +434,12 @@ ui.extendElement = {
 		});
 	},
 	draggable: function(element, params){
+		if(element.length > 1){
+			element.each(function(index, item){
+				ui.extendElement.draggable($(item), params);
+			});
+		}
+
 		element.on('mousedown', function(e){
 			if(element.data('lock') === true || (e.target.tagName === 'TEXTAREA' && $(e.target).is(':focus'))){
 				return;

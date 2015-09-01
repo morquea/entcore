@@ -33,7 +33,13 @@ window.RTE = (function(){
 			this.insertHTML = function(htmlContent){
 				var wrapper = document.createElement('div');
 				$(wrapper).html(htmlContent);
-				this.range.insertNode(wrapper);
+				if(this.range){
+					this.range.insertNode(wrapper);
+				}
+				else{
+					this.element.find('[contenteditable]').append(wrapper);
+				}
+				this.trigger('contentupdated');
 			};
 
 			function selectionChanged(){
@@ -69,6 +75,7 @@ window.RTE = (function(){
 			});
 
 			data.element.on('keyup', function(e){
+				that.trigger('contentupdated');
 				if(!selectionChanged()){
 					return;
 				}
@@ -542,6 +549,10 @@ window.RTE = (function(){
 								if($(item).attr('src') === '/workspace/document/' + scope.display.file._id){
 									$(item).attr('draggable', true);
 									$(item).attr('native', true);
+
+									instance.element.on('drop', function(e){
+										ui.extendElement.resizable($(item), { moveWithResize: false });
+									});
 								}
 							});
 						};
@@ -583,7 +594,7 @@ window.RTE = (function(){
 							scope.linker.addResource = Behaviours.applicationsBehaviours[prefix].create;
 						};
 
-						scope.linker.searchApplication = function(){
+						scope.linker.searchApplication = function(cb){
 							var split = scope.linker.search.application.address.split('/');
 							var prefix = split[split.length - 1];
 							scope.linker.params.appPrefix = prefix;
@@ -593,6 +604,9 @@ window.RTE = (function(){
 											resource._id === scope.linker.search.text);
 								});
 								scope.linker.resource.title = scope.linker.search.text;
+								if(typeof cb === 'function'){
+									cb();
+								}
 							});
 						};
 
@@ -674,13 +688,70 @@ window.RTE = (function(){
 								);
 							});
 
-							scope.linker.search.application = scope.linker.apps[0];
-							scope.linker.loadApplicationResources(function(){});
+							scope.linker.search.application = _.find(scope.linker.apps, function(app){ return app.address.indexOf(appPrefix) !== -1 });
+							if(!scope.linker.search.application){
+								scope.linker.search.application = scope.linker.apps[0];
+								scope.linker.searchApplication(function(){
+									scope.linker.loadApplicationResources(function(){});
+								})
+							}
+							else{
+								scope.linker.loadApplicationResources(function(){});
+							}
 
 							scope.$apply('linker');
 						});
 					}
 				}
+			});
+
+			RTE.baseToolbarConf.option('unlink', function(instance){
+				return {
+					template: '<i></i>',
+					link: function(scope, element, attributes){
+						element.addClass('disabled');
+						element.on('click', function(){
+							document.execCommand('unlink');
+							element.addClass('disabled');
+						});
+
+						instance.on('selectionchange', function(e){
+							if(e.selection.selectedElements.is('a')){
+								element.removeClass('disabled');
+							}
+							else{
+								element.addClass('disabled');
+							}
+						});
+					}
+				};
+			});
+
+			RTE.baseToolbarConf.option('smileys', function(instance){
+				return {
+					template: '' +
+						'<i></i>' +
+						'<lightbox show="display.pickSmiley" on-close="display.pickSmiley = false;">' +
+							'<h2>Insérer un smiley</h2>' +
+							'<div class="row">' +
+								'<i ng-repeat="smiley in smileys" ng-click="addSmiley(smiley)">[[smiley]]</i>' +
+							'</div>' +
+						'</lightbox>',
+					link: function(scope, element, attributes){
+						scope.display = {};
+						scope.smileys = [ "happy", "proud", "dreamy", "love", "tired", "angry", "worried", "sick", "joker", "sad" ];
+						scope.addSmiley = function(smiley){
+							var content = '<i class="' + smiley + '"></i>';
+							instance.insertHTML(content);
+							scope.display.pickSmiley = false;
+						}
+
+						element.addClass('disabled');
+						element.on('click', function(){
+							scope.display.pickSmiley = true;
+						});
+					}
+				};
 			});
 
 			RTE.baseToolbarConf.option('table', function(instance){
@@ -732,6 +803,7 @@ window.RTE = (function(){
 								}
 							}
 							instance.insertHTML(table.outerHTML);
+							element.find('popover-content').addClass('hidden');
 						});
 					}
 				}
@@ -756,46 +828,46 @@ window.RTE = (function(){
 								title: 'Deux colonnes',
 								html:
 									'<div class="row">' +
-										'<div class="six cell">' +
+										'<article class="six cell">' +
 											'<h2>Titre de votre première colonne</h2>' +
 											'<p>Vous pouvez entrer ici le texte de votre première colonne</p>' +
-										'</div>' +
-										'<div class="six cell">' +
+										'</article>' +
+										'<article class="six cell">' +
 											'<h2>Titre de votre deuxième colonne</h2>' +
 											'<p>Vous pouvez entrer ici le texte de votre deuxième colonne</p>' +
-										'</div>' +
+										'</article>' +
 									'</div>'
 							},
 							{
 								title: 'Trois colonnes',
 								html:
 									'<div class="row">' +
-										'<div class="four cell">' +
+										'<article class="four cell">' +
 											'<h2>Titre de votre première colonne</h2>' +
 											'<p>Vous pouvez entrer ici le texte de votre première colonne</p>' +
-										'</div>' +
-										'<div class="four cell">' +
+										'</article>' +
+										'<article class="four cell">' +
 											'<h2>Titre de votre deuxième colonne</h2>' +
 											'<p>Vous pouvez entrer ici le texte de votre deuxième colonne</p>' +
-										'</div>' +
-										'<div class="four cell">' +
+										'</article>' +
+										'<article class="four cell">' +
 											'<h2>Titre de votre troisième colonne</h2>' +
 											'<p>Vous pouvez entrer ici le texte de votre troisième colonne</p>' +
-										'</div>' +
+										'</article>' +
 									'</div>'
 							},
 							{
 								title: 'Illustration et texte',
 								html:
 									'<div class="row">' +
-										'<div class="three cell">' +
+										'<article class="three cell">' +
 											'<img skin-src="/img/illustrations/default-image.png" />' +
-										'</div>' +
-										'<div class="nine cell">' +
+										'</article>' +
+										'<article class="nine cell">' +
 											'<h2>Titre de votre texte</h2>' +
 											'<p>Vous pouvez entrer ici votre texte. Pour changer l\'image du modèle, cliquez sur l\'image, puis sur le bouton' +
 											'"Insérer une image" dans la barre de boutons de l\'éditeur.</p>' +
-										'</div>' +
+										'</article>' +
 									'</div>'
 							},
 							{
@@ -806,12 +878,13 @@ window.RTE = (function(){
 						scope.applyTemplate = function(template){
 							scope.display.pickTemplate = false;
 							instance.insertHTML(_.findWhere(scope.templates, { title: template.title}).html);
+							ui.extendElement.resizable(instance.element.find('article'), { moveWithResize: false });
 						};
 
 						element.children('i').on('click', function(){
 							scope.display.pickTemplate = true;
 							scope.$apply('display');
-						})
+						});
 					}
 				}
 			});
@@ -876,6 +949,14 @@ window.RTE = (function(){
 							}
 						);
 
+						element.on('dragenter', function(e){
+							e.preventDefault();
+						});
+
+						element.on('dragover', function(e){
+							e.preventDefault();
+						});
+
 						element.children('popover').find('li:first-child').on('click', function(){
 							element.removeClass('html');
 							element.removeClass('both');
@@ -916,7 +997,7 @@ window.RTE = (function(){
 							});
 						});
 
-						editZone.on('keyup', function(){
+						editorInstance.on('contentupdated', function(){
 							htmlZone.css('min-height', editZone.height() + 'px');
 							scope.$apply(function(){
 								scope.$eval(attributes.ngChange);
@@ -933,6 +1014,19 @@ window.RTE = (function(){
 						editZone.on('keydown', function(e){
 							if(e.keyCode === 9){
 								e.preventDefault();
+								var currentTag;
+								if(editorInstance.range.startContainer.tagName){
+									currentTag = editorInstance.range.startContainer;
+								}
+								else{
+									currentTag = editorInstance.range.startContainer.parentElement;
+								}
+								if(currentTag.tagName === 'TD'){
+									var selection = window.getSelection();
+									var range = document.createRange();
+									range.setStart(currentTag.nextSibling, 0);
+								}
+
 								document.execCommand('indent');
 							}
 						});
