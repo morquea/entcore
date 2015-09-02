@@ -123,16 +123,16 @@ public class MongoDbShareService extends GenericShareService {
 				if (Boolean.TRUE.equals(event)) {
 					share(resourceId, groupShareId, actions, true, handler);
 				} else {
-					groupShareValidation(userId, groupShareId, actions, new Handler<Either<String, JsonObject>>() {
-						@Override
-						public void handle(Either<String, JsonObject> event) {
-							if (event.isRight()) {
+//					groupShareValidation(userId, groupShareId, actions, new Handler<Either<String, JsonObject>>() {
+//						@Override
+//						public void handle(Either<String, JsonObject> event) {
+//							if (event.isRight()) {
 								share(resourceId, groupShareId, actions, true, handler);
-							} else {
-								handler.handle(event);
-							}
-						}
-					});
+//							} else {
+//								handler.handle(event);
+//							}
+//						}
+//					});
 				}
 			}
 		});
@@ -231,16 +231,16 @@ public class MongoDbShareService extends GenericShareService {
 				if (Boolean.TRUE.equals(event)) {
 					share(resourceId, userShareId, actions, false, handler);
 				} else {
-					userShareValidation(userId, userShareId, actions, new Handler<Either<String, JsonObject>>() {
-						@Override
-						public void handle(Either<String, JsonObject> event) {
-							if (event.isRight()) {
+//					userShareValidation(userId, userShareId, actions, new Handler<Either<String, JsonObject>>() {
+//						@Override
+//						public void handle(Either<String, JsonObject> event) {
+//							if (event.isRight()) {
 								share(resourceId, userShareId, actions, false, handler);
-							} else {
-								handler.handle(event);
-							}
-						}
-					});
+//							} else {
+//								handler.handle(event);
+//							}
+//						}
+//					});
 				}
 			}
 		});
