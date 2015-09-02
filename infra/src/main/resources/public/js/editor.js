@@ -546,8 +546,8 @@ window.RTE = (function(){
 
 			RTE.baseToolbarConf.option('fontSize', function(instance) {
 				return {
-					template: '<select-list ng-model="fontSize" placeholder="Taille" ng-change="setSize()">' +
-					'<opt ng-repeat="fontSize in fontSizes" value="fontSize" style="font-size: [[fontSize]]">[[fontSize]]</opt>' +
+					template: '<select-list ng-model="fontSize" placeholder="Taille">' +
+					'<option ng-repeat="fontSize in fontSizes" value="fontSize" style="font-size: [[fontSize]]px">[[fontSize]]</option>' +
 					'</select-list>',
 					link: function(scope, element, attributes){
 						scope.fontSizes = [8,10,12,14,16,18,20,24,28,34,42,64,72];
@@ -868,20 +868,19 @@ window.RTE = (function(){
 						'<lightbox show="display.pickSmiley" on-close="display.pickSmiley = false;">' +
 							'<h2>Insérer un smiley</h2>' +
 							'<div class="row">' +
-								'<i ng-repeat="smiley in smileys" ng-click="addSmiley(smiley)">[[smiley]]</i>' +
+								'<img ng-repeat="smiley in smileys" ng-click="addSmiley(smiley)" ng-src="/img/icons/[[smiley]].png" />' +
 							'</div>' +
 						'</lightbox>',
 					link: function(scope, element, attributes){
 						scope.display = {};
 						scope.smileys = [ "happy", "proud", "dreamy", "love", "tired", "angry", "worried", "sick", "joker", "sad" ];
 						scope.addSmiley = function(smiley){
-							var content = '<i class="' + smiley + '"></i>';
+							var content = instance.compile('<img skin-src="/img/icons/' + smiley + '.png" draggable native style="height: 60px; width: 60px;" />')(scope.$parent);
 							instance.insertHTML(content);
 							scope.display.pickSmiley = false;
 						}
 
-						element.addClass('disabled');
-						element.on('click', function(){
+						element.children('i').on('click', function(){
 							scope.display.pickSmiley = true;
 						});
 					}
@@ -1012,7 +1011,6 @@ window.RTE = (function(){
 						scope.applyTemplate = function(template){
 							scope.display.pickTemplate = false;
 							instance.insertHTML(_.findWhere(scope.templates, { title: template.title}).html);
-							ui.extendElement.resizable(instance.element.find('article'), { moveWithResize: false });
 						};
 
 						element.children('i').on('click', function(){
@@ -1105,9 +1103,6 @@ window.RTE = (function(){
 										htmlZone.val(html_beautify(newValue));
 									}
 								}
-								element.children('[contenteditable]').find('img, table').each(function(index, item){
-									ui.extendElement.resizable($(item), { moveWithResize: false });
-								});
 							}
 						);
 
@@ -1162,7 +1157,7 @@ window.RTE = (function(){
 							if(parseInt(htmlZone.css('min-height')) < editZone.height()){
 								htmlZone.css('min-height', editZone.height() + 'px');
 							}
-
+							ui.extendElement.resizable(element.children('[contenteditable]').find('img, table, article'), { moveWithResize: false });
 							scope.$apply(function(){
 								scope.$eval(attributes.ngChange);
 								var content = editZone.html();
