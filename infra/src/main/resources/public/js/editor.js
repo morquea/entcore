@@ -889,6 +889,32 @@ window.RTE = (function(){
 				}
 			});
 
+			RTE.baseToolbarConf.option('embed', function(instance){
+				return {
+					template: '<i></i>' +
+					'<lightbox show="display.copyEmbed" on-close="display.copyEmbed = false;">' +
+					'<h2>Choisir un modèle</h2>' +
+					'<p class="info"><i18n>info.video.embed</i18n></p>' +
+					'<textarea ng-model="display.htmlCode"></textarea>' +
+					'<div class="row">' +
+					'<button type="button" ng-click="display."></button>' +
+					'</div>' +
+					'</lightbox>',
+					link: function(scope, element, attributes){
+						scope.display = {};
+						scope.applyTemplate = function(template){
+							scope.display.pickTemplate = false;
+							instance.insertHTML(_.findWhere(scope.templates, { title: template.title}).html);
+							ui.extendElement.resizable(instance.element.find('article'), { moveWithResize: false });
+						};
+
+						element.children('i').on('click', function(){
+							scope.display.pickTemplate = true;
+							scope.$apply('display');
+						});
+					}
+				}
+			});
 
 			//Editor
 			module.directive('editor', function($parse, $compile){
