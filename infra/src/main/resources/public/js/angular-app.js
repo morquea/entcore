@@ -1224,11 +1224,11 @@ module.directive('bindHtml', function($compile){
 		},
 		link: function(scope, element){
 			scope.$watch('bindHtml', function(newVal){
-				var htmlVal = $(newVal)
+				var htmlVal = $('<div>' + newVal + '</div>')
 				//Remove resizable attributes
 				htmlVal.find('[resizable]').removeAttr('resizable').css('cursor', 'initial');
-				var htmlContent = _.map(htmlVal, function(el){return el.outerHTML }).join('');
-				element.html($compile($('<div>').append(htmlContent))(scope.$parent));
+				var htmlContent = htmlVal[0].outerHTML;
+				element.html($compile(htmlContent)(scope.$parent));
 				//weird browser bug with audio tags
 				element.find('audio').each(function(index, item){
 					var parent = $(item).parent();

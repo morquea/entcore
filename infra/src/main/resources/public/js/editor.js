@@ -6,18 +6,24 @@ window.RTE = (function(){
 
 			function getSelectedElements(){
 				var selection = getSelection();
-				if(!selection.rangeCount || !that.element.children('[contenteditable]').is(':focus')){
+				if(!selection.rangeCount){
 					return $();
 				}
 				var range = selection.getRangeAt(0);
-				that.range = range;
 				var jSelector = $();
 				var iterator = $(range.startContainer.parentElement);
-				jSelector = jSelector.add(iterator);
+				if(that.element.children('[contenteditable]').find(iterator).length > 0){
+					jSelector = jSelector.add(iterator);
+				}
 				var end = $(range.endContainer.parentElement);
 				while((iterator[0] && end[0]) && iterator[0] !== end[0] && !iterator.find(end[0]).length){
 					iterator = iterator.next();
-					jSelector = jSelector.add(iterator);
+					if(that.element.children('[contenteditable]').find(iterator).length > 0){
+						jSelector = jSelector.add(iterator);
+					}
+				}
+				if(jSelector.length > 0){
+					that.range = range;
 				}
 				return jSelector;
 			}
@@ -68,9 +74,7 @@ window.RTE = (function(){
 					return;
 				}
 				that.trigger('selectionchange', {
-					selection: new RTE.Selection({
-						selectedElements: getSelectedElements()
-					})
+					selection: getSelectedElements()
 				});
 			});
 
@@ -80,10 +84,9 @@ window.RTE = (function(){
 					return;
 				}
 				that.trigger('selectionchange', {
-					selection: new RTE.Selection({
-						selectedElements: getSelectedElements()
-					})
+					selection: getSelectedElements()
 				});
+				that.scope.$apply();
 			});
 		},
 		Toolbar: function(instance){
@@ -109,9 +112,6 @@ window.RTE = (function(){
 			};
 		},
 		Option: function(){
-
-		},
-		Selection: function(){
 
 		},
 		setModel: function(){
@@ -446,6 +446,14 @@ window.RTE = (function(){
 				return {
 					template: '<input type="color" />',
 					link: function(scope, element, attributes){
+						if(!$.spectrum){
+							$.spectrum = {};
+							http().get('/infra/public/spectrum/spectrum.js').done(function(data){
+								eval(data);
+							});
+							var stylesheet = $('<link rel="stylesheet" type="text/css" href="/infra/public/spectrum/spectrum.css" />');
+							$('head').prepend(stylesheet);
+						}
 						scope.foreColor = "#000000";
 						element.children('input').on('change', function(){
 							scope.foreColor = $(this).val();
@@ -458,7 +466,6 @@ window.RTE = (function(){
 
 						instance.on('selectionchange', function(e){
 							scope.foreColor = document.queryCommandValue('foreColor');
-							scope.$apply();
 						});
 					}
 				};
@@ -468,6 +475,15 @@ window.RTE = (function(){
 				return {
 					template: '<input type="color" />',
 					link: function(scope, element, attributes){
+						if(!$.spectrum){
+							$.spectrum = {};
+							http().get('/infra/public/spectrum/spectrum.js').done(function(data){
+								eval(data);
+							});
+							var stylesheet = $('<link rel="stylesheet" type="text/css" href="/infra/public/spectrum/spectrum.css" />');
+							$('head').prepend(stylesheet);
+						}
+
 						element.children('input').on('change', function(){
 							scope.backColor = $(this).val();
 							scope.$apply('backColor');
@@ -479,7 +495,6 @@ window.RTE = (function(){
 
 						instance.on('selectionchange', function(e){
 							scope.backColor = document.queryCommandValue('backColor');
-							scope.$apply();
 						});
 					}
 				};
@@ -488,8 +503,8 @@ window.RTE = (function(){
 			RTE.baseToolbarConf.option('font', function(instance){
 				return {
 					template:
-						'<select-list ng-model="font" display-as="fontFamily" placeholder="Police">' +
-							'<option ng-repeat="font in fonts" value="font" style="font-family: [[font.fontFamily]]">[[font.fontFamily]]</option>' +
+						'<select-list ng-model="font" display-as="fontFamily" placeholder="Police" ng-change="setFontFamily()">' +
+							'<opt ng-repeat="font in fonts" value="font" style="font-family: [[font.fontFamily]]">[[font.fontFamily]]</opt>' +
 						'</select-list>',
 					link: function(scope, element, attributes){
 						var importedFonts =
@@ -516,26 +531,102 @@ window.RTE = (function(){
 									}
 								}
 							);
-						scope.fonts = [{ fontFamily: 'Arial' }, { fontFamily: 'Verdana' }, { fontFamily: 'Tahoma' }, { fontFamily: 'Comic Sans MS' }].concat(importedFonts);
+						scope.fonts = [{ fontFamily: 'Arial' }, { fontFamily: 'Verdana' }, { fontFamily: 'Tahoma' }, { fontFamily: "'Comic Sans MS'" }].concat(importedFonts);
 						scope.font = _.findWhere(scope.fonts, { fontFamily: $('p').css('font-family') });
+						scope.setFontFamily = function(){
+							document.execCommand('fontName', false, scope.font.fontFamily);
+						};
+
+						instance.on('selectionchange', function(e){
+							scope.font = _.findWhere(scope.fonts, { fontFamily: document.queryCommandValue('fontName') });
+						});
 					}
 				};
 			});
 
 			RTE.baseToolbarConf.option('fontSize', function(instance) {
 				return {
-					template: '<select-list ng-model="fontSize" placeholder="Taille">' +
-					'<option ng-repeat="fontSize in fontSizes" value="font" style="font-size: [[fontSize]]">[[fontSize]]</option>' +
+					template: '<select-list ng-model="fontSize" placeholder="Taille" ng-change="setSize()">' +
+					'<opt ng-repeat="fontSize in fontSizes" value="fontSize" style="font-size: [[fontSize]]">[[fontSize]]</opt>' +
 					'</select-list>',
 					link: function(scope, element, attributes){
 						scope.fontSizes = [8,10,12,14,16,18,20,24,28,34,42,64,72];
+						scope.setSize = function(){
+							instance.selection.each(function(index, item){
+								$(item).css('font-size', scope.fontSize + 'px');
+							});
+						};
+						instance.on('selectionchange', function(e){
+							scope.ngModel = instance.selection.css('font-size');
+						});
+					}
+				}
+			});
+
+			RTE.baseToolbarConf.option('format', function(instance) {
+				return {
+					template: '<select-list ng-model="format" placeholder="Paragraphe" display-as="label" ng-change="wrap()">' +
+					'<opt ng-repeat="format in formats" value="format"><div bind-html="format.option"></div></opt>' +
+					'</select-list>',
+					link: function(scope, element, attributes){
+						scope.formats = [
+							{
+								apply: { tag: 'p' },
+								option: '<p>[[format.label]]</p>',
+								label: 'Paragraphe'
+							},
+							{
+								apply: { tag: 'h1' },
+								option: '<h1>[[format.label]]</h1>',
+								label: 'Titre'
+							},
+							{
+								apply: { tag: 'h2' },
+								option: '<h2>[[format.label]]</h2>',
+								label: 'Titre 2'
+							},
+							{
+								apply: { tag: 'h3' },
+								option: '<h3>[[format.label]]</h3>',
+								label: 'Titre 3'
+							},
+							{
+								apply: { tag: 'p', classes: ['info'] },
+								option: '<p class="info">[[format.label]]</p>',
+								label: 'Information'
+							},
+							{
+								apply: { tag: 'p', classes: ['warning'] },
+								option: '<p class="warning">[[format.label]]</p>',
+								label: 'Avertissement'
+							}
+						];
+
+						instance.on('selectionchange', function(e){
+							scope.formats.forEach(function(format){
+								if(e.selection.is(format.apply.tag)){
+									scope.format = format;
+								}
+							})
+						});
+
+						scope.wrap = function(){
+							var newEl = $('<' + scope.format.apply.tag + '></' + scope.format.apply.tag + '>');
+							if(scope.format.apply.classes){
+								scope.format.apply.classes.forEach(function(element){
+									newEl.addClass(element);
+								});
+							}
+
+							instance.selection.wrap(newEl);
+						}
 					}
 				}
 			});
 
 			RTE.baseToolbarConf.option('image', function(instance){
 				return {
-					template: '<i></i>' +
+					template: '<i ng-click="display.pickFile = true"></i>' +
 						'<lightbox show="display.pickFile" on-close="display.pickFile = false;">' +
 							'<media-library ng-change="updateContent()" ng-model="display.file" file-format="\'img\'"></media-library>' +
 						'</lightbox>',
@@ -544,23 +635,66 @@ window.RTE = (function(){
 						scope.display = {};
 						scope.updateContent = function(){
 							document.execCommand('insertImage', false, '/workspace/document/' + scope.display.file._id);
+							instance.insertHTML('<img src="/workspace/document/' + scope.display.file._id + '" draggable native />')
 							scope.display.pickFile = false;
-							instance.element.children('[contenteditable]').find('img').each(function(index, item){
+							scope.display.file = undefined;
+						};
+
+						instance.element.on('drop', function(e){
+							//delay to account for image destruction and recreation
+							setTimeout(function(){
+								ui.extendElement.resizable(instance.element.children('[contenteditable]').find('img'), { moveWithResize: false });
+							}, 200)
+						});
+					}
+				}
+			});
+
+			RTE.baseToolbarConf.option('sound', function(instance){
+				return {
+					template: '<i ng-click="display.pickFile = true"></i>' +
+					'<lightbox show="display.pickFile" on-close="display.pickFile = false;">' +
+					'<media-library ng-change="updateContent()" ng-model="display.file" file-format="\'audio\'"></media-library>' +
+					'</lightbox>',
+					link: function(scope, element, attributes){
+						instance.element.children('[contenteditable]').addClass('drawing-zone');
+						scope.display = {};
+						scope.updateContent = function(){
+							instance.insertHTML(
+									'<div>&nbsp;</div>' +
+									'<div><audio src="/workspace/document/' + scope.display.file._id + '" controls></audio></div>' +
+									'<div>&nbsp;</div>'
+							);
+							scope.display.pickFile = false;
+							scope.display.file = undefined;
+							instance.element.children('[contenteditable]').find('audio').each(function(index, item){
 								if($(item).attr('src') === '/workspace/document/' + scope.display.file._id){
 									$(item).attr('draggable', true);
 									$(item).attr('native', true);
-
-									instance.element.on('drop', function(e){
-										ui.extendElement.resizable($(item), { moveWithResize: false });
-									});
 								}
 							});
 						};
+					}
+				}
+			});
 
-						element.children('i').on('click', function(){
-							scope.display.pickFile = true;
-							scope.$apply('display');
-						})
+			RTE.baseToolbarConf.option('mathjax', function(instance){
+				return {
+					template: '<i ng-click="display.fillFormula = true"></i>' +
+					'<lightbox show="display.fillFormula" on-close="display.fillFormula = false;">' +
+						'<textarea ng-model="display.formula"></textarea>' +
+						'<mathjax ng-model="display.formula"></mathjax>' +
+						'<div class="row">' +
+							'<button type="button" ng-click="display.fillFormula = true" class="right-magnet cancel"><i18n>cancel</i18n></button>' +
+							'<button type="button" ng-click="updateContent()" class="right-magnet"><i18n>apply</i18n></button>' +
+						'</div>' +
+					'</lightbox>',
+					link: function(scope, element, attributes){
+						scope.display = {};
+						scope.updateContent = function(){
+							instance.insertHTML('<mathjax ng-model="\'' + scope.display.formula + '\'"></mathjax>');
+							scope.display.fillFormula = false;
+						};
 					}
 				}
 			});
@@ -716,7 +850,7 @@ window.RTE = (function(){
 						});
 
 						instance.on('selectionchange', function(e){
-							if(e.selection.selectedElements.is('a')){
+							if(e.selection.is('a')){
 								element.removeClass('disabled');
 							}
 							else{
@@ -891,27 +1025,22 @@ window.RTE = (function(){
 
 			RTE.baseToolbarConf.option('embed', function(instance){
 				return {
-					template: '<i></i>' +
+					template: '<i ng-click="display.copyEmbed = true"></i>' +
 					'<lightbox show="display.copyEmbed" on-close="display.copyEmbed = false;">' +
 					'<h2>Choisir un modèle</h2>' +
 					'<p class="info"><i18n>info.video.embed</i18n></p>' +
 					'<textarea ng-model="display.htmlCode"></textarea>' +
 					'<div class="row">' +
-					'<button type="button" ng-click="display."></button>' +
+						'<button type="button" ng-click="applyHtml()" class="right-magnet"><i18n>apply</i18n></button>' +
+						'<button type="button" ng-click="display.copyEmbed = false" class="cancel right-magnet"><i18n>cancel</i18n></button>' +
 					'</div>' +
 					'</lightbox>',
 					link: function(scope, element, attributes){
 						scope.display = {};
-						scope.applyTemplate = function(template){
-							scope.display.pickTemplate = false;
-							instance.insertHTML(_.findWhere(scope.templates, { title: template.title}).html);
-							ui.extendElement.resizable(instance.element.find('article'), { moveWithResize: false });
+						scope.applyHtml = function(template){
+							scope.display.copyEmbed = false;
+							instance.insertHTML(scope.display.htmlCode);
 						};
-
-						element.children('i').on('click', function(){
-							scope.display.pickTemplate = true;
-							scope.$apply('display');
-						});
 					}
 				}
 			});
@@ -939,6 +1068,13 @@ window.RTE = (function(){
 						var editZone = element.children('[contenteditable=true]');
 						var htmlZone = element.children('textarea');
 						document.execCommand('styleWithCSS', true);
+						document.execCommand('enableInlineTableEditing', true);
+						editZone.append('<div><br /></div>');
+
+						if(attributes.inline !== undefined){
+							element.children('editor-toolbar').addClass('inline');
+						}
+
 						var toolbarConf = RTE.baseToolbarConf;
 						if(attributes.toolbarConf){
 							toolbarConf = scope.$eval(attributes.toolbarConf);
@@ -979,10 +1115,6 @@ window.RTE = (function(){
 							e.preventDefault();
 						});
 
-						element.on('dragover', function(e){
-							e.preventDefault();
-						});
-
 						element.children('popover').find('li:first-child').on('click', function(){
 							element.removeClass('html');
 							element.removeClass('both');
@@ -1016,7 +1148,10 @@ window.RTE = (function(){
 						});
 
 						element.find('.option i').click(function(){
-							editZone.focus();
+							if(!editZone.is(':focus')){
+								editZone.focus();
+							}
+
 							scope.$apply(function(){
 								scope.$eval(attributes.ngChange);
 								ngModel.assign(scope, editZone.html());
@@ -1024,20 +1159,41 @@ window.RTE = (function(){
 						});
 
 						editorInstance.on('contentupdated', function(){
-							htmlZone.css('min-height', editZone.height() + 'px');
+							if(parseInt(htmlZone.css('min-height')) < editZone.height()){
+								htmlZone.css('min-height', editZone.height() + 'px');
+							}
+
 							scope.$apply(function(){
 								scope.$eval(attributes.ngChange);
-								ngModel.assign(scope, editZone.html());
+								var content = editZone.html();
+								ngModel.assign(scope, content);
 								var newHeight = htmlZone[0].scrollHeight + 2;
 								if(newHeight > htmlZone.height()){
 									htmlZone.height(newHeight);
 								}
 
-								editZone.css('min-height', htmlZone[0].scrollHeight + 2 + 'px');
+								if(htmlZone[0].scrollHeight + 2 > parseInt(htmlZone.css('min-height'))){
+									editZone.css('min-height', htmlZone[0].scrollHeight + 2 + 'px');
+								}
 							});
 						});
 
+						element.on('click', function(){
+							element.children('editor-toolbar').addClass('show');
+						});
+
+						$('body').on('mousedown', function(e){
+							if(element.find(e.target).length === 0){
+								element.children('editor-toolbar').removeClass('show');
+							}
+						});
+
 						editZone.on('keydown', function(e){
+							if(e.keyCode === 8){
+								if(editZone.html()[0] !== '<'){
+									editZone.prepend('<div><br /></div>')
+								}
+							}
 							if(e.keyCode === 9){
 								e.preventDefault();
 								var currentTag;
@@ -1048,12 +1204,28 @@ window.RTE = (function(){
 									currentTag = editorInstance.range.startContainer.parentElement;
 								}
 								if(currentTag.tagName === 'TD'){
-									var selection = window.getSelection();
+									var nextTag = currentTag.nextSibling;
+									if(!nextTag){
+										nextTag = $(currentTag).parent('tr').next().children('td')[0];
+									}
+									if(!nextTag){
+										var newLine = $('<tr></tr>');
+										for(var i = 0; i < $(currentTag).parent('tr').children('td').length; i++){
+											newLine.append($('<td>&nbsp;</td>'));
+										}
+										nextTag = newLine.children('td')[0];
+										$(currentTag).closest('table').append(newLine);
+									}
 									var range = document.createRange();
-									range.setStart(currentTag.nextSibling, 0);
-								}
+									range.setStart(nextTag, 0);
 
-								document.execCommand('indent');
+									var selection = window.getSelection();
+									selection.removeAllRanges();
+									selection.addRange(range);
+								}
+								else{
+									document.execCommand('indent');
+								}
 							}
 						});
 
@@ -1115,11 +1287,12 @@ window.RTE = (function(){
 								element.children('.options').addClass('hidden');
 							}
 						});
-						element.children('.options').on('click', 'option', function(){
+						element.children('.options').on('click', 'opt', function(){
 							scope.ngModel = angular.element(this).scope().$eval($(this).attr('value'));
-							scope.ngChange();
 							element.children('.options').addClass('hidden');
 							scope.$apply('ngModel');
+							scope.ngChange();
+							scope.$apply();
 						});
 
 						$('body').click(function(e){
@@ -1186,6 +1359,30 @@ window.RTE = (function(){
 						element.addClass("hidden");
 					}
 				};
+			});
+
+			module.directive('mathjax', function(){
+				return {
+					restrict: 'E',
+					scope: {
+						ngModel: '='
+					},
+					link: function(scope, element, attributes){
+						if(!scope.ngModel){
+							scope.ngModel = '{-b \\pm \\sqrt{b^2-4ac} \\over 2a}';
+						}
+						http().get('/infra/public/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML').done(function(data){
+							eval(data);
+							MathJax.Hub.Typeset();
+						});
+						scope.$watch('ngModel', function(newVal){
+							element.text('$$' + newVal + '$$');
+							if(window.MathJax && window.MathJax.Hub){
+								MathJax.Hub.Typeset();
+							}
+						});
+					}
+				}
 			});
 		}
 	};
