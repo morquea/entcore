@@ -78,7 +78,7 @@ public class SwiftStorage implements Storage {
 
 	@Override
 	public void writeFsFile(String id, String filename, Handler<JsonObject> handler) {
-
+		swiftClient.writeFromFileSystem(id, filename, container, handler);
 	}
 
 	private void writeStorageObject(final Handler<JsonObject> handler, StorageObject o) {
