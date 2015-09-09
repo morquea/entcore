@@ -330,6 +330,11 @@ public class UserUtils {
 		});
 	}
 
+//	public static void createSession(EventBus eb, String userId,
+//									 final Handler<String> handler) {
+//
+//	}
+
 	public static void createSession(EventBus eb, String userId,
 									 final Handler<String> handler) {
 		JsonObject json = new JsonObject()

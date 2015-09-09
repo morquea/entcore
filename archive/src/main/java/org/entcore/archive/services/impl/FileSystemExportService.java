@@ -208,12 +208,14 @@ public class FileSystemExportService implements ExportService {
 							}
 
 							private void storeZip(final Message<JsonObject> event) {
-								fs.readFile(exportDirectory + ".zip", new AsyncResultHandler<Buffer>() {
-									@Override
-									public void handle(AsyncResult<Buffer> eventFile) {
-										if (eventFile.succeeded()) {
-											storage.writeBuffer(exportId, eventFile.result(), "application/zip",
-													exportId + ".zip", new Handler<JsonObject>() {
+								storage.writeFsFile(exportId, exportDirectory + ".zip",
+//								fs.readFile(exportDirectory + ".zip", new AsyncResultHandler<Buffer>() {
+//									@Override
+//									public void handle(AsyncResult<Buffer> eventFile) {
+//										if (eventFile.succeeded()) {
+//											storage.writeBuffer(exportId, eventFile.result(), "application/zip",
+//													exportId + ".zip",
+													new Handler<JsonObject>() {
 												@Override
 												public void handle(JsonObject res) {
 													if (!"ok".equals(res.getString("status"))) {
@@ -228,15 +230,15 @@ public class FileSystemExportService implements ExportService {
 													publish(event);
 												}
 											});
-										} else {
-											log.error("Zip saving " + exportId + " error.", eventFile.cause());
-											event.body().putString("message", "zip.saving.error");
-											deleteTempZip(exportId);
-											userExportInProgress.remove(getUserId(exportId));
-											publish(event);
-										}
-									}
-								});
+//										} else {
+//											log.error("Zip saving " + exportId + " error.", eventFile.cause());
+//											event.body().putString("message", "zip.saving.error");
+//											deleteTempZip(exportId);
+//											userExportInProgress.remove(getUserId(exportId));
+//											publish(event);
+//										}
+//									}
+//								});
 							}
 
 							public void deleteTempZip(final String exportId) {
