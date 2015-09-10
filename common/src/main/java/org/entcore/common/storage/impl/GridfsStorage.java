@@ -39,6 +39,7 @@ import org.vertx.java.core.json.JsonArray;
 import org.vertx.java.core.json.JsonObject;
 import org.vertx.java.core.logging.Logger;
 import org.vertx.java.core.logging.impl.LoggerFactory;
+import org.vertx.java.core.streams.WriteStream;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -222,8 +223,8 @@ public class GridfsStorage implements Storage {
 		gridfsSendChunkFile(id, downloadName, eb, gridfsAddress, request.response(), inline, metadata, resultHandler);
 	}
 
-	private static void gridfsReadChunkFile(final String id, final EventBus eb,
-									  final String gridfsAddress, final Handler<Chunk> handler) {
+	private static void gridfsReadChunkFile(final String id, final EventBus eb, final String gridfsAddress,
+			final WriteStream writeStream, final Handler<Chunk> handler) {
 		JsonObject find = new JsonObject();
 		find.putString("action", "countChunks");
 		find.putString("files_id", id);
@@ -257,14 +258,31 @@ public class GridfsStorage implements Storage {
 								final int j = i;
 								handlers[i] = new Handler<Chunk>() {
 									@Override
-									public void handle(Chunk chunk) {
-										handler.handle(chunk);
-										getChunk(id, j + 1, eb, gridfsAddress, new Handler<Chunk>() {
-											@Override
-											public void handle(Chunk res) {
-												handlers[j + 1].handle(res);
-											}
-										});
+									public void handle(final Chunk chunk) {
+										if (writeStream != null && writeStream.writeQueueFull()) {
+											writeStream.drainHandler(new Handler<Void>() {
+												@Override
+												public void handle(Void event) {
+													log.debug("in drain handler");
+													writeStream.drainHandler(null);
+													handler.handle(chunk);
+													getChunk(id, j + 1, eb, gridfsAddress, new Handler<Chunk>() {
+														@Override
+														public void handle(Chunk res) {
+															handlers[j + 1].handle(res);
+														}
+													});
+												}
+											});
+										} else {
+											handler.handle(chunk);
+											getChunk(id, j + 1, eb, gridfsAddress, new Handler<Chunk>() {
+												@Override
+												public void handle(Chunk res) {
+													handlers[j + 1].handle(res);
+												}
+											});
+										}
 									}
 								};
 							}
@@ -314,7 +332,7 @@ public class GridfsStorage implements Storage {
 									  final String gridfsAddress, final HttpServerResponse response, final boolean inline,
 									  final JsonObject metadata, final Handler<AsyncResult<Void>> resultHandler) {
 		response.setChunked(true);
-		gridfsReadChunkFile(id, eb, gridfsAddress, new Handler<Chunk>() {
+		gridfsReadChunkFile(id, eb, gridfsAddress, response, new Handler<Chunk>() {
 			@Override
 			public void handle(Chunk chunk) {
 				if (chunk == null) {
@@ -359,6 +377,7 @@ public class GridfsStorage implements Storage {
 						response.putHeader("Content-Type", metadata.getString("content-type"));
 					}
 				}
+
 				response.write(chunk.data);
 			}
 		});
